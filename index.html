@@ -1,0 +1,1961 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Harf Yakalama - Klavye Öğrenme Oyunu</title>
+
+<style>
+/* ============================================================
+   Harf Yakalama - Klavye Öğrenme Oyunu
+   Çocuk dostu, canlı renkler ve büyük yazı tipleri
+   ============================================================ */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  /* Gökyüzü: açık maviden biraz daha koyu maviye geçiş */
+  background: linear-gradient(180deg, #87CEEB 0%, #6EC6F0 60%, #A5DFF7 100%);
+  font-family: "Comic Sans MS", "Trebuchet MS", "Segoe UI", sans-serif;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;          /* sayfa kaymasın */
+  user-select: none;         /* çocuk yanlışlıkla yazı seçmesin */
+}
+
+/* ------------------------------------------------------------
+   ÜST PANEL
+   ------------------------------------------------------------ */
+.panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;      /* dar ekranda düğmeler kırpılmasın, alt satıra insin */
+  gap: 12px;
+  padding: 10px 20px;
+  background: linear-gradient(180deg, #FFD93D 0%, #FFB627 100%);
+  border-bottom: 6px solid #FF9A00;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, .2);
+  z-index: 20;
+}
+
+.baslik {
+  font-size: clamp(1.1rem, 2.6vw, 2rem);
+  color: #FFFFFF;
+  text-shadow: 2px 2px 0 #FF7A00, 4px 4px 0 rgba(0, 0, 0, .15);
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+/* Skor kutusu ve yanındaki tablo düğmesi.
+   align-items: stretch -> ikisi de aynı yükseklikte görünür. */
+.sol-grup {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.skor-kutusu {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #FFFFFF;
+  border: 5px solid #FF6B6B;
+  border-radius: 18px;
+  padding: 6px 18px;
+  box-shadow: 0 4px 0 #D64545;
+}
+
+.skor-etiket {
+  font-size: 1rem;
+  color: #FF6B6B;
+  font-weight: bold;
+}
+
+.skor-deger {
+  font-size: clamp(1.6rem, 3.5vw, 2.4rem);
+  font-weight: bold;
+  color: #2D3E50;
+  /* 5 hane (10000) için sabit yer: puan büyüdükçe kutu genişleyip
+     üst paneli oynatmasın */
+  min-width: 5ch;
+  text-align: right;
+}
+
+/* Skor değişince kısa bir büyüme animasyonu */
+.skor-deger.zipla {
+  animation: skorZipla .3s ease;
+}
+
+@keyframes skorZipla {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.4); }
+  100% { transform: scale(1); }
+}
+
+/* Butonlar */
+.butonlar {
+  display: flex;
+  gap: 10px;
+}
+
+.btn {
+  font-family: inherit;
+  font-size: clamp(.9rem, 1.8vw, 1.3rem);
+  font-weight: bold;
+  color: #FFFFFF;
+  padding: 10px 22px;
+  border: none;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: transform .1s ease, filter .15s ease;
+  white-space: nowrap;
+}
+
+.btn-basla    { background: #37CB6B; box-shadow: 0 5px 0 #23964B; }
+.btn-yeniden  { background: #4D9DE0; box-shadow: 0 5px 0 #2E6FA6; }
+.btn-duraklat { background: #9B59B6; box-shadow: 0 5px 0 #74368C; }
+/* Tablo düğmesi, puan kutusuyla eş görünsün: beyaz zemin + renkli çerçeve */
+.btn-tablo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #FFFFFF;
+  color: #FF8C42;
+  border: 5px solid #FF8C42;
+  border-radius: 18px;
+  padding: 6px 18px;
+  font-size: clamp(1rem, 2vw, 1.4rem);
+  box-shadow: 0 4px 0 #C96A2A;
+}
+.btn-kapat   { background: #4D9DE0; box-shadow: 0 5px 0 #2E6FA6; margin-top: 18px; }
+.btn-kaydet  { background: #37CB6B; box-shadow: 0 5px 0 #23964B; padding: 8px 20px; }
+
+.btn:hover:not(:disabled) { filter: brightness(1.1); }
+
+/* Basılınca butonun "gerçekten basılmış" gibi görünmesi */
+.btn:active:not(:disabled) {
+  transform: translateY(5px);
+  box-shadow: none;
+}
+
+.btn:disabled {
+  opacity: .45;
+  cursor: default;
+}
+
+/* ------------------------------------------------------------
+   SAHNE: solda oyun alanı, sağda adam asmaca paneli
+   ------------------------------------------------------------ */
+.sahne {
+  flex: 1;
+  display: flex;
+  min-height: 380px;
+}
+
+.oyun-alani {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ---- Bulutlar: ana gövde + iki yuvarlak kabartma ---- */
+.bulut {
+  position: absolute;
+  width: 130px;
+  height: 46px;
+  background: #FFFFFF;
+  border-radius: 46px;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, .12);
+  animation: bulutSuzul 9s ease-in-out infinite;
+}
+
+.bulut::before,
+.bulut::after {
+  content: "";
+  position: absolute;
+  background: #FFFFFF;
+  border-radius: 50%;
+}
+
+.bulut::before {
+  width: 58px;
+  height: 58px;
+  top: -26px;
+  left: 20px;
+}
+
+.bulut::after {
+  width: 44px;
+  height: 44px;
+  top: -18px;
+  right: 22px;
+}
+
+/* Bulutlar hafifçe sağa sola süzülsün */
+@keyframes bulutSuzul {
+  0%, 100% { transform: translateX(0); }
+  50%      { transform: translateX(14px); }
+}
+
+/* Her bulut farklı zamanda hareket etsin */
+.bulut:nth-child(2) { animation-delay: -2.5s; }
+.bulut:nth-child(3) { animation-delay: -5s; }
+.bulut:nth-child(4) { animation-delay: -7s; }
+
+/* ---- Yerdeki çimen ---- */
+.cimen {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 46px;
+  background: linear-gradient(180deg, #7ED957 0%, #4CAF50 100%);
+  border-top: 5px solid #3E9142;
+}
+
+/* ------------------------------------------------------------
+   ADAM ASMACA PANELİ (sağ taraf)
+   ------------------------------------------------------------ */
+.asmaca-panel {
+  width: clamp(170px, 22vw, 260px);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 10px;
+  background: rgba(255, 255, 255, .55);
+  border-left: 6px solid #FFD93D;
+}
+
+.asmaca-baslik {
+  font-size: clamp(.9rem, 1.6vw, 1.2rem);
+  color: #2D3E50;
+  font-weight: bold;
+}
+
+/* "Hata: 3 / 8" göstergesi */
+.hata-kutusu {
+  background: #FFFFFF;
+  border: 4px solid #FF6B6B;
+  border-radius: 14px;
+  padding: 4px 14px;
+  font-size: clamp(1rem, 1.8vw, 1.3rem);
+  font-weight: bold;
+  color: #C62828;
+}
+
+.asmaca-cizim {
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Asmaca parçaları önce görünmez, hata yapıldıkça belirir */
+.parca {
+  opacity: 0;
+  transition: opacity .25s ease;
+}
+
+.parca.gorunur {
+  opacity: 1;
+  animation: parcaBelir .35s ease;
+}
+
+@keyframes parcaBelir {
+  0%   { opacity: 0; transform: scale(1.5); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* Son parça eklenince tüm çizim kırmızıya döner */
+.asmaca-cizim.bitti .adam {
+  stroke: #C62828;
+}
+
+/* ------------------------------------------------------------
+   DÜŞEN HARFLER
+   ------------------------------------------------------------ */
+.harf {
+  position: absolute;
+  width: 86px;
+  height: 86px;
+  margin-left: -43px;               /* x konumu harfin ortası olsun */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3.2rem;
+  font-weight: bold;
+  color: #2D3E50;
+  background: #FFFFFF;
+  border: 6px solid #C9D6DF;
+  border-radius: 22px;
+  box-shadow: 0 6px 0 rgba(0, 0, 0, .12);
+  /* Renk geçişleri yumuşak olsun (konum JS ile sürekli değiştiği için
+     transform/top animasyonu yok) */
+  transition: background-color .15s, border-color .15s, color .15s;
+}
+
+/* Sıradaki hedef harf: mavi çerçeve + zıplama */
+.harf.hedef {
+  border-color: #1E88E5;
+  color: #1565C0;
+  box-shadow: 0 0 0 6px rgba(30, 136, 229, .25), 0 6px 0 rgba(0, 0, 0, .12);
+  animation: harfZipla .6s ease-in-out infinite;
+}
+
+@keyframes harfZipla {
+  0%, 100% { transform: scale(1)    rotate(0deg); }
+  50%      { transform: scale(1.12) rotate(-3deg); }
+}
+
+/* Doğru bilindi: yeşile dön ve büyüyerek kaybol */
+.harf.dogru {
+  background: #37CB6B;
+  border-color: #23964B;
+  color: #FFFFFF;
+  animation: harfKaybol .35s ease forwards;
+}
+
+/* Yanlış tuş veya yere düşme: kırmızıya dön ve sallanarak kaybol */
+.harf.yanlis {
+  background: #FF5A5A;
+  border-color: #D64545;
+  color: #FFFFFF;
+  animation: harfSallan .35s ease forwards;
+}
+
+@keyframes harfKaybol {
+  0%   { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1.8);  opacity: 0; }
+}
+
+@keyframes harfSallan {
+  0%   { transform: translateX(0)     scale(1);   opacity: 1; }
+  25%  { transform: translateX(-12px) scale(1.05); }
+  50%  { transform: translateX(12px)  scale(1.05); }
+  75%  { transform: translateX(-8px)  scale(1); }
+  100% { transform: translateX(0)     scale(.7);  opacity: 0; }
+}
+
+/* ------------------------------------------------------------
+   PUAN BALONCUKLARI (+50 / -50)
+   ------------------------------------------------------------ */
+.puan-balonu {
+  position: absolute;
+  font-size: 2rem;
+  font-weight: bold;
+  pointer-events: none;
+  animation: balonYuksel .8s ease-out forwards;
+  text-shadow: 2px 2px 0 rgba(255, 255, 255, .8);
+}
+
+.puan-balonu.arti { color: #1B8A3E; }
+.puan-balonu.eksi { color: #C62828; }
+
+@keyframes balonYuksel {
+  0%   { transform: translateY(0)     scale(.8); opacity: 1; }
+  100% { transform: translateY(-70px) scale(1.3); opacity: 0; }
+}
+
+/* ------------------------------------------------------------
+   MESAJ KATMANI (başlangıç ve oyun sonu ekranı)
+   ------------------------------------------------------------ */
+.mesaj-katmani {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, .35);
+  z-index: 10;
+  cursor: pointer;          /* katmana tıklayınca da oyun başlar */
+}
+
+/* Oyun oynanırken mesaj katmanı gizlenir */
+.mesaj-katmani.gizli {
+  display: none;
+}
+
+.mesaj-kutu {
+  background: #FFFFFF;
+  border: 8px solid #FFD93D;
+  border-radius: 30px;
+  padding: 28px 44px;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .25);
+  max-width: 90%;
+}
+
+.mesaj-baslik {
+  font-size: clamp(1.6rem, 4vw, 2.6rem);
+  color: #FF6B6B;
+  margin-bottom: 14px;
+}
+
+.mesaj-metin {
+  font-size: clamp(1rem, 2.2vw, 1.4rem);
+  color: #2D3E50;
+  line-height: 1.7;
+}
+
+.mesaj-ipucu {
+  margin-top: 16px;
+  font-size: clamp(.9rem, 1.8vw, 1.1rem);
+  color: #4D9DE0;
+}
+
+/* ------------------------------------------------------------
+   İSİM GİRİŞ FORMU (rekor kırılınca oyun sonu kutusunda çıkar)
+   ------------------------------------------------------------ */
+.isim-form {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 3px dashed #FFD93D;
+}
+
+.isim-form.gizli { display: none; }
+
+.isim-etiket {
+  display: block;
+  font-size: clamp(.95rem, 1.9vw, 1.2rem);
+  color: #1B8A3E;
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+
+.isim-satir {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  align-items: center;
+}
+
+.isim-girdi {
+  font-family: inherit;
+  font-size: 1.6rem;
+  font-weight: bold;
+  text-align: center;
+  text-transform: uppercase;
+  /* 5 karakter + harf aralığı + iç boşluk sığsın (yatay kaydırma olmasın) */
+  width: 11ch;
+  min-width: 190px;   /* WWWWW gibi en geniş 5 harf bile sığsın */
+  padding: 8px 10px;
+  color: #2D3E50;
+  background: #FFFDF2;
+  border: 4px solid #FFB627;
+  border-radius: 14px;
+  letter-spacing: 2px;
+}
+
+.isim-girdi:focus {
+  outline: none;
+  border-color: #1E88E5;
+}
+
+/* ------------------------------------------------------------
+   DURAKLATMA EKRANI
+   ------------------------------------------------------------ */
+.duraklat-katmani {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(45, 62, 80, .45);
+  z-index: 12;
+  cursor: pointer;      /* ekrana tıklayınca da devam eder */
+}
+
+.duraklat-katmani.gizli { display: none; }
+
+.duraklat-kutu {
+  background: #FFFFFF;
+  border: 8px solid #9B59B6;
+  border-radius: 30px;
+  padding: 26px 40px;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .3);
+  max-width: 90%;
+}
+
+.duraklat-baslik {
+  font-size: clamp(1.5rem, 3.6vw, 2.4rem);
+  color: #9B59B6;
+  margin-bottom: 10px;
+}
+
+.duraklat-metin {
+  font-size: clamp(.95rem, 2vw, 1.25rem);
+  color: #2D3E50;
+  line-height: 1.6;
+}
+
+/* Duraklatılınca bulutlar donsun */
+.oyun-alani.durdu .bulut {
+  animation-play-state: paused;
+}
+
+/* Duraklatılınca harfler tamamen gizlenir: oyuncu duraklatıp
+   kuyruktaki harfleri inceleyemesin */
+.oyun-alani.durdu .harf {
+  visibility: hidden;
+  animation-play-state: paused;
+}
+
+/* ------------------------------------------------------------
+   GERİ SAYIM (duraklatmadan sonra devam ederken)
+   ------------------------------------------------------------ */
+.geri-sayim {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(5rem, 18vw, 12rem);
+  font-weight: bold;
+  color: #FFFFFF;
+  text-shadow: 4px 4px 0 #9B59B6, 8px 8px 0 rgba(0, 0, 0, .2);
+  pointer-events: none;
+  z-index: 13;
+}
+
+.geri-sayim.gizli { display: none; }
+
+.geri-sayim.tik {
+  animation: sayimTik .5s ease;
+}
+
+@keyframes sayimTik {
+  0%   { transform: scale(1.8); opacity: 0; }
+  40%  { transform: scale(1);   opacity: 1; }
+  100% { transform: scale(1);   opacity: 1; }
+}
+
+/* ------------------------------------------------------------
+   KONFETİ (10000 puana ulaşınca patlar)
+   ------------------------------------------------------------ */
+.konfeti-katmani {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;   /* tıklamalar altındaki oyuna geçsin */
+  z-index: 35;
+}
+
+.konfeti-parca {
+  position: absolute;
+  width: 12px;
+  height: 18px;
+  will-change: transform;
+}
+
+/* ------------------------------------------------------------
+   SKOR TABLOSU (En İyi 5)
+   ------------------------------------------------------------ */
+.tablo-katmani {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(45, 62, 80, .55);
+  z-index: 40;
+}
+
+.tablo-katmani.gizli { display: none; }
+
+.tablo-kutu {
+  background: #FFFFFF;
+  border: 8px solid #FF8C42;
+  border-radius: 30px;
+  padding: 26px 32px;
+  text-align: center;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, .35);
+  max-width: 92%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.tablo-baslik {
+  font-size: clamp(1.4rem, 3.4vw, 2.2rem);
+  color: #FF8C42;
+  margin-bottom: 18px;
+}
+
+.skor-listesi {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: min(420px, 80vw);
+}
+
+/* Tek bir sıra: madalya | isim | puan | tarih */
+.skor-satir {
+  display: grid;
+  grid-template-columns: 2.2rem 1fr auto auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 14px;
+  background: #FFF7E0;
+  border: 3px solid #FFD93D;
+  border-radius: 16px;
+  font-size: clamp(.95rem, 1.9vw, 1.25rem);
+  color: #2D3E50;
+}
+
+/* Yeni eklenen rekor vurgulansın */
+.skor-satir.yeni {
+  background: #E4F8EA;
+  border-color: #37CB6B;
+  animation: skorZipla .5s ease;
+}
+
+.skor-madalya { font-size: 1.4rem; }
+.skor-isim    { font-weight: bold; text-align: left; letter-spacing: 1px; }
+.skor-puan    { font-weight: bold; color: #C62828; min-width: 4ch; text-align: right; }
+.skor-tarih   { font-size: .8em; color: #7A8899; }
+
+.tablo-bos {
+  font-size: 1.1rem;
+  color: #7A8899;
+  padding: 20px 0;
+}
+
+/* ------------------------------------------------------------
+   YARDIM (i) DÜĞMESİ VE PENCERESİ
+   ------------------------------------------------------------ */
+.yardim-btn {
+  margin-top: auto;          /* panelin en altına insin */
+  align-self: flex-end;      /* ve sağa yaslansın */
+  width: 46px;
+  height: 46px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 4px solid #FFFFFF;
+  background: #4D9DE0;
+  color: #FFFFFF;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.6rem;
+  font-style: italic;
+  font-weight: bold;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 4px 0 #2E6FA6;
+  transition: transform .1s ease, filter .15s ease;
+}
+
+.yardim-btn:hover { filter: brightness(1.1); }
+.yardim-btn:active { transform: translateY(4px); box-shadow: none; }
+
+.yardim-kutu {
+  text-align: left;
+  border-color: #4D9DE0;
+  min-width: min(560px, 86vw);
+}
+
+.yardim-kutu .tablo-baslik { color: #4D9DE0; text-align: center; }
+
+.yardim-bolum {
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 2px dashed #DCE6F0;
+}
+
+.yardim-bolum:last-of-type { border-bottom: none; }
+
+.yardim-bolum h3 {
+  font-size: clamp(1.05rem, 2.2vw, 1.3rem);
+  color: #FF8C42;
+  margin-bottom: 6px;
+}
+
+.yardim-bolum p,
+.yardim-bolum li {
+  font-size: clamp(.9rem, 1.9vw, 1.1rem);
+  color: #2D3E50;
+  line-height: 1.6;
+}
+
+.yardim-bolum ul {
+  list-style: none;
+  padding-left: 4px;
+}
+
+.yardim-bolum li { margin: 4px 0; }
+
+.yardim-kutu .btn-kapat { display: block; margin: 18px auto 0; }
+
+/* Tek satıra sığmadığı noktada başlık kendi satırına alınsın.
+   Puan kutusu + tablo düğmesi + başlık + üç düğme ~1290 px yer ister. */
+@media (max-width: 1300px) {
+  .panel { justify-content: center; }
+  .baslik { order: -1; width: 100%; text-align: center; }
+}
+
+/* Küçük ekranlarda harfler ve asmaca paneli de küçülsün */
+@media (max-width: 720px) {
+  .harf { width: 66px; height: 66px; margin-left: -33px; font-size: 2.4rem; }
+  .asmaca-panel { width: 130px; }
+}
+
+/* Telefon boyutu: üst paneldeki kutular sığsın diye ölçüler daralır */
+@media (max-width: 480px) {
+  .panel { padding: 8px 10px; gap: 8px; }
+  .sol-grup { gap: 8px; }
+  .skor-kutusu { padding: 4px 10px; border-width: 4px; }
+  .skor-etiket { font-size: .75rem; }
+  .btn { padding: 8px 12px; }
+  .btn-tablo { padding: 4px 10px; border-width: 4px; }
+  .butonlar { gap: 6px; flex-wrap: wrap; justify-content: center; }
+}
+</style>
+</head>
+
+<body>
+
+  <!-- ÜST PANEL: skor ve butonlar -->
+  <header class="panel">
+    <div class="sol-grup">
+      <div class="skor-kutusu">
+        <span class="skor-etiket">PUAN</span>
+        <span id="skor" class="skor-deger">0</span>
+      </div>
+      <button id="tabloBtn" class="btn btn-tablo" title="En yüksek 5 skor">
+        🏆 En İyi 5
+      </button>
+    </div>
+
+    <h1 class="baslik">🎹 Harf Yakalama</h1>
+
+    <div class="butonlar">
+      <button id="baslaBtn" class="btn btn-basla">▶ Başla</button>
+      <button id="duraklatBtn" class="btn btn-duraklat" disabled>⏸ Duraklat</button>
+      <button id="yenidenBtn" class="btn btn-yeniden">↻ Yeniden Başlat</button>
+    </div>
+  </header>
+
+  <div class="sahne">
+
+    <!-- OYUN ALANI: bulutlar, düşen harfler ve çimen burada -->
+    <main id="oyunAlani" class="oyun-alani">
+
+      <!-- Dekoratif bulutlar (CSS ile çizilir) -->
+      <div class="bulut" style="left: 6%;  top: 14px;"></div>
+      <div class="bulut" style="left: 28%; top: 34px;"></div>
+      <div class="bulut" style="left: 52%; top: 10px;"></div>
+      <div class="bulut" style="left: 76%; top: 38px;"></div>
+
+      <!-- Oyun başlamadan ve bittiğinde görünen mesaj katmanı -->
+      <div id="mesajKatmani" class="mesaj-katmani">
+        <div class="mesaj-kutu">
+          <p id="mesajBaslik" class="mesaj-baslik">Hazır mısın?</p>
+          <p id="mesajMetin" class="mesaj-metin">
+            Bulutlardan harfler düşecek.<br>
+            <b>Mavi çerçeveli</b> harfe bak ve o tuşa bas!<br>
+            Kaçırırsan ya da yanlış basarsan adam asmaca büyür.<br>
+            <b>10000 puana</b> ulaşırsan oyunu kazanırsın!
+          </p>
+          <p id="mesajIpucu" class="mesaj-ipucu">
+            Başlamak için <b>▶ Başla</b> düğmesine tıkla
+          </p>
+
+          <!-- Rekor kırılınca görünür: en fazla 5 karakterlik isim -->
+          <div id="isimForm" class="isim-form gizli">
+            <label class="isim-etiket" for="isimGirdi">
+              🎉 En iyi 5'e girdin! Adını yaz:
+            </label>
+            <div class="isim-satir">
+              <input id="isimGirdi" class="isim-girdi" type="text" maxlength="5"
+                     autocomplete="off" spellcheck="false" placeholder="AD">
+              <button id="kaydetBtn" class="btn btn-kaydet">Kaydet</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Duraklatma ekranı -->
+      <div id="duraklatKatmani" class="duraklat-katmani gizli">
+        <div class="duraklat-kutu">
+          <p class="duraklat-baslik">⏸ Oyun Duraklatıldı</p>
+          <p class="duraklat-metin">
+            Harfler saklandı 🙈<br>
+            Devam edince <b>harfler değişir</b> ve 3'ten geri sayılır.<br>
+            Sonra bir süre tekrar duraklatamazsın.
+          </p>
+        </div>
+      </div>
+
+      <!-- Devam ederken 3-2-1 geri sayımı -->
+      <div id="geriSayim" class="geri-sayim gizli"></div>
+
+      <!-- Yerdeki çimen şeridi -->
+      <div class="cimen"></div>
+    </main>
+
+    <!-- ADAM ASMACA: her hatada bir parça eklenir, 8 parçada oyun biter -->
+    <aside class="asmaca-panel">
+      <div class="asmaca-baslik">Adam Asmaca</div>
+      <div class="hata-kutusu">Hata: <span id="hataSayisi">0</span> / 8</div>
+
+      <svg id="asmacaCizim" class="asmaca-cizim" viewBox="0 0 200 260"
+           preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+        <!-- Darağacı (kahverengi) -->
+        <line id="p1" class="parca" x1="20"  y1="243" x2="180" y2="243"
+              stroke="#8B5E3C" stroke-width="10" stroke-linecap="round"/>
+        <line id="p2" class="parca" x1="50"  y1="243" x2="50"  y2="25"
+              stroke="#8B5E3C" stroke-width="10" stroke-linecap="round"/>
+        <line id="p3" class="parca" x1="45"  y1="25"  x2="145" y2="25"
+              stroke="#8B5E3C" stroke-width="10" stroke-linecap="round"/>
+        <line id="p4" class="parca" x1="145" y1="28"  x2="145" y2="60"
+              stroke="#A9743F" stroke-width="7"  stroke-linecap="round"/>
+
+        <!-- Adam (koyu lacivert) -->
+        <g id="p5" class="parca adam" fill="none" stroke="#2D3E50"
+           stroke-width="7" stroke-linecap="round">
+          <circle cx="145" cy="82" r="22" fill="#FFFFFF"/>
+          <circle cx="137" cy="77" r="2.5" fill="#2D3E50" stroke="none"/>
+          <circle cx="153" cy="77" r="2.5" fill="#2D3E50" stroke="none"/>
+          <path d="M136 93 Q145 86 154 93"/>
+        </g>
+        <line id="p6" class="parca adam" x1="145" y1="104" x2="145" y2="168"
+              stroke="#2D3E50" stroke-width="7" stroke-linecap="round"/>
+        <g id="p7" class="parca adam" fill="none" stroke="#2D3E50"
+           stroke-width="7" stroke-linecap="round">
+          <path d="M145 120 L116 146"/>
+          <path d="M145 120 L174 146"/>
+        </g>
+        <g id="p8" class="parca adam" fill="none" stroke="#2D3E50"
+           stroke-width="7" stroke-linecap="round">
+          <path d="M145 168 L119 212"/>
+          <path d="M145 168 L171 212"/>
+        </g>
+      </svg>
+
+      <!-- Yardım düğmesi: ekranın en alt sağ köşesi -->
+      <button id="yardimBtn" class="yardim-btn" title="Nasıl oynanır?"
+              aria-label="Nasıl oynanır">i</button>
+    </aside>
+
+  </div>
+
+  <!-- KONFETİ: kazanınca parçacıklar buraya eklenir -->
+  <div id="konfetiKatmani" class="konfeti-katmani"></div>
+
+  <!-- YARDIM: i düğmesiyle açılır, oyun ilk kez açıldığında kendiliğinden gelir -->
+  <div id="yardimKatmani" class="tablo-katmani gizli">
+    <div class="tablo-kutu yardim-kutu">
+      <h2 class="tablo-baslik">ℹ️ Nasıl Oynanır?</h2>
+
+      <div class="yardim-bolum">
+        <h3>🎯 Amaç</h3>
+        <p>
+          Bulutlardan harfler düşer. <b>Mavi çerçeveli ve zıplayan</b> harf
+          senin hedefin — klavyede o harfin tuşuna bas. Aynı anda en fazla
+          3 harf düşer ve sıra hep en eski harftedir.
+        </p>
+      </div>
+
+      <div class="yardim-bolum">
+        <h3>⭐ Puanlar</h3>
+        <ul>
+          <li>✅ Doğru tuş: <b>+50 puan</b></li>
+          <li>❌ Yanlış tuş: <b>−50 puan</b> ve 1 hata</li>
+          <li>⬇️ Harf yere düşerse: <b>−50 puan</b> ve 1 hata</li>
+          <li>🛡️ Puan hiçbir zaman <b>0'ın altına inmez</b></li>
+        </ul>
+      </div>
+
+      <div class="yardim-bolum">
+        <h3>🏁 Oyun ne zaman biter?</h3>
+        <ul>
+          <li>🎉 <b>10000 puana</b> ulaşırsan kazanırsın: konfeti ve alkış!
+              (200 doğru harf demek)</li>
+          <li>💀 <b>8 hata</b> yaparsan adam asmaca tamamlanır ve oyun biter.</li>
+        </ul>
+        <p>Harfler zamanla hızlanır: başta yavaş düşerler, oyun ilerledikçe
+           gittikçe hızlanır.</p>
+      </div>
+
+      <div class="yardim-bolum">
+        <h3>🏆 En İyi 5</h3>
+        <p>
+          Oyun bitince puanın <b>0'dan büyükse</b> ve listedeki
+          <b>5. sıradan yüksekse</b> en fazla <b>5 harflik</b> bir isim
+          yazıp kaydedersin. Liste puanla birlikte tarihi de gösterir ve
+          bilgisayarın hafızasında saklanır — oyunu kapatsan da kaybolmaz.
+          Üstteki <b>🏆 En İyi 5</b> düğmesiyle her zaman bakabilirsin.
+        </p>
+      </div>
+
+      <div class="yardim-bolum">
+        <h3>⏸ Duraklatma</h3>
+        <p>
+          Kalkman gerekirse <b>⏸ Duraklat</b>'a bas. Duraklatınca harfler
+          saklanır. Devam edince <b>harfler değişir</b>, 3'ten geri sayılır
+          ve bir süre tekrar duraklatamazsın — böylece duraklatarak
+          kolaylık sağlanamaz. Puanın ve hataların aynen kalır.
+        </p>
+      </div>
+
+      <div class="yardim-bolum">
+        <h3>🎛️ Düğmeler</h3>
+        <ul>
+          <li><b>▶ Başla</b> — yeni oyun başlatır</li>
+          <li><b>⏸ Duraklat / ▶ Devam Et</b> — oyunu dondurur ve sürdürür</li>
+          <li><b>↻ Yeniden Başlat</b> — her şeyi sıfırlayıp baştan başlar</li>
+          <li><b>🏆 En İyi 5</b> — skor tablosunu açar</li>
+          <li><b>i</b> — bu yardım penceresini açar</li>
+        </ul>
+      </div>
+
+      <button id="yardimKapatBtn" class="btn btn-kapat">Anladım!</button>
+    </div>
+  </div>
+
+  <!-- SKOR TABLOSU: 🏆 düğmesiyle açılır -->
+  <div id="tabloKatmani" class="tablo-katmani gizli">
+    <div class="tablo-kutu">
+      <h2 class="tablo-baslik">🏆 En İyi 5 Skor</h2>
+      <ol id="tabloListe" class="skor-listesi"></ol>
+      <button id="tabloKapatBtn" class="btn btn-kapat">Kapat</button>
+    </div>
+  </div>
+
+<script>
+/* ============================================================
+   Harf Yakalama - Klavye Öğrenme Oyunu
+   ------------------------------------------------------------
+   Kurallar:
+   - Bulutlardan A-Z harfleri düşer, ekranda en fazla 3 harf olur.
+   - Harfler çıkış sırasına göre bir kuyruğa girer.
+     Kuyruğun en eskisi "hedef" harftir (mavi çerçeve + zıplama).
+   - Doğru tuş -> harf yeşile döner, +50 puan
+   - Yanlış tuş -> harf kırmızıya döner, -50 puan + 1 hata
+   - Harf zemine değerse -> -50 puan + 1 hata
+   - Puan hiçbir zaman 0'ın altına inmez.
+   - 8 hatada adam asmaca tamamlanır ve oyun biter.
+   ============================================================ */
+
+(function () {
+  "use strict";
+
+  /* ---------- Ayarlar (oyunu buradan kolayca dengeleyebilirsin) ---------- */
+  var AYAR = {
+    MAKS_HARF: 3,            // aynı anda ekranda olabilecek harf sayısı
+    DOGRU_PUAN: 50,          // doğru tuş puanı
+    HATA_PUAN: 50,           // her hatada düşülecek puan
+    MAKS_HATA: 8,            // bu kadar hatada oyun biter (asmaca tamamlanır)
+    MAKS_PUAN: 10000,        // bu puana ulaşınca oyun kazanılır
+
+    // Duraklatmanın kötüye kullanılmasını engelleyen ayarlar
+    GERI_SAYIM: 3,           // devam ederken kaçtan geri sayılsın
+    DURAKLAT_BEKLEME: 10,    // devam ettikten sonra tekrar duraklatmak için (sn)
+
+    // Düşme hızı, oyun alanı yüksekliğinin yüzdesi olarak (saniyede).
+    // Böylece hız, ekran boyutundan bağımsız olarak aynı hissedilir.
+    BASLANGIC_HIZ: 0.10,     // ~10 saniyede yere iner
+    HIZ_ARTISI: 0.005,       // her saniye biraz hızlansın
+    MAKS_HIZ: 0.32,          // ~3 saniye: en zor seviye
+
+    // Yeni harf çıkma aralığı (saniye)
+    BASLANGIC_ARALIK: 2.0,
+    ARALIK_AZALMASI: 0.02,   // her saniye kısalsın
+    MIN_ARALIK: 0.9,
+
+    BULUT_ALTI: 80,          // harfler bulutun hemen altından çıkar (px)
+    CIMEN_YUKSEKLIGI: 46,    // yerdeki çimen şeridi (px)
+
+    // Harflerin çıkabileceği yatay şeritler (bulutların altına denk gelir)
+    SERITLER: [12, 34, 58, 82] // oyun alanı genişliğinin yüzdesi
+  };
+
+  var ALFABE = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+
+  /* ---------- DOM öğeleri ---------- */
+  var oyunAlani   = document.getElementById("oyunAlani");
+  var skorEl      = document.getElementById("skor");
+  var baslaBtn    = document.getElementById("baslaBtn");
+  var yenidenBtn  = document.getElementById("yenidenBtn");
+  var duraklatBtn = document.getElementById("duraklatBtn");
+  var duraklatKatmani = document.getElementById("duraklatKatmani");
+  var geriSayimEl = document.getElementById("geriSayim");
+  var mesajKatman = document.getElementById("mesajKatmani");
+  var mesajBaslik = document.getElementById("mesajBaslik");
+  var mesajMetin  = document.getElementById("mesajMetin");
+  var mesajIpucu  = document.getElementById("mesajIpucu");
+  var hataSayisiEl = document.getElementById("hataSayisi");
+  var asmacaCizim  = document.getElementById("asmacaCizim");
+
+  var tabloBtn      = document.getElementById("tabloBtn");
+  var tabloKatmani  = document.getElementById("tabloKatmani");
+  var tabloListe    = document.getElementById("tabloListe");
+  var tabloKapatBtn = document.getElementById("tabloKapatBtn");
+  var yardimBtn      = document.getElementById("yardimBtn");
+  var yardimKatmani  = document.getElementById("yardimKatmani");
+  var yardimKapatBtn = document.getElementById("yardimKapatBtn");
+  var konfetiKatmani = document.getElementById("konfetiKatmani");
+  var isimForm      = document.getElementById("isimForm");
+  var isimGirdi     = document.getElementById("isimGirdi");
+  var kaydetBtn     = document.getElementById("kaydetBtn");
+
+  // Asmaca parçaları: hata sırasına göre bu sırayla belirir
+  // 1 zemin, 2 direk, 3 üst çubuk, 4 ip, 5 kafa, 6 gövde, 7 kollar, 8 bacaklar
+  var asmacaParcalari = ["p1", "p2", "p3", "p4", "p5", "p6", "p7", "p8"]
+    .map(function (id) { return document.getElementById(id); });
+
+  /* ---------- Oyun durumu ---------- */
+  var oynaniyor   = false;
+  var skor        = 0;
+  var hata        = 0;     // yapılan hata sayısı (0..MAKS_HATA)
+  var gecenSure   = 0;     // oyun başladığından beri geçen saniye
+  var dogumSayaci = 0;     // bir sonraki harfe kalan süre
+  var sonKare     = 0;     // requestAnimationFrame zaman damgası
+  var animId      = null;
+
+  // Kuyruk: en baştaki (index 0) eleman her zaman hedef harftir.
+  // Her eleman: { harf, x (yüzde), y (px), el (DOM) }
+  var kuyruk = [];
+
+  var duraklatildi     = false; // oyuncu oyunu duraklattı mı?
+  var yardimGosterildi = false; // bu oturumda yardım açıldı mı?
+  var geriSayimSayaci  = null;  // devam ederkenki 3-2-1 sayacı
+  var beklemeSayaci    = null;  // tekrar duraklatabilmek için bekleme sayacı
+  var isimBekleniyor = false;   // oyun sonunda isim girişi açık mı?
+
+  /* ============================================================
+     SES (Web Audio API - hiç ses dosyası gerekmez)
+     ============================================================ */
+  var sesCtx    = null;
+  var anaKazanc = null;   // tüm sesler buradan geçer (ortak ses seviyesi)
+
+  /** Ses motorunu ilk kullanıcı hareketinde hazırlar/uyandırır. */
+  function sesHazirla() {
+    var AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;                       // tarayıcı desteklemiyorsa sessiz oyna
+    try {
+      if (!sesCtx) {
+        sesCtx = new AudioCtx();
+
+        // Ana zincir: kazanç -> sıkıştırıcı -> hoparlör.
+        // Sıkıştırıcı, üst üste binen sesler 1.0'ı aşınca oluşan
+        // cızırtıyı (kırpılmayı) engeller.
+        anaKazanc = sesCtx.createGain();
+        anaKazanc.gain.value = 0.7;
+
+        var sikistirici = sesCtx.createDynamicsCompressor();
+        sikistirici.threshold.value = -18;
+        sikistirici.knee.value      = 20;
+        sikistirici.ratio.value     = 8;
+        sikistirici.attack.value    = 0.004;
+        sikistirici.release.value   = 0.25;
+
+        anaKazanc.connect(sikistirici).connect(sesCtx.destination);
+      }
+      if (sesCtx.state === "suspended") sesCtx.resume();
+    } catch (e) {
+      sesCtx = null;                             // ses açılamadıysa oyun yine de çalışsın
+      anaKazanc = null;
+    }
+  }
+
+  /**
+   * Tek bir ton çalar.
+   * @param {string} tip      osilatör tipi: "sine", "square", "sawtooth"...
+   * @param {number} basFrek  başlangıç frekansı (Hz)
+   * @param {number} sonFrek  bitiş frekansı (Hz)
+   * @param {number} sure     saniye
+   * @param {number} ses      0-1 arası yükseklik
+   * @param {number} gecikme  kaç saniye sonra başlasın
+   */
+  function tonCal(tip, basFrek, sonFrek, sure, ses, gecikme) {
+    if (!sesCtx || !anaKazanc) return;
+    var t0 = sesCtx.currentTime + (gecikme || 0);
+
+    var osc  = sesCtx.createOscillator();
+    var gain = sesCtx.createGain();
+
+    osc.type = tip;
+    osc.frequency.setValueAtTime(basFrek, t0);
+    osc.frequency.exponentialRampToValueAtTime(sonFrek, t0 + sure);
+
+    // Yumuşak giriş/çıkış: "tık" sesi oluşmasın
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.exponentialRampToValueAtTime(ses, t0 + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + sure);
+
+    osc.connect(gain).connect(anaKazanc);
+    osc.start(t0);
+    osc.stop(t0 + sure + 0.02);
+  }
+
+  /** Doğru harf: kısa, neşeli iki notalı "ding" */
+  function dingCal() {
+    tonCal("sine", 880, 1000, 0.12, 0.25, 0);      // La
+    tonCal("sine", 1320, 1500, 0.22, 0.22, 0.09);  // bir oktav üstü
+  }
+
+  /** Hata: kısa, boğuk bir "buzz" */
+  function buzzCal() {
+    tonCal("square", 180, 90, 0.22, 0.14, 0);
+  }
+
+  /**
+   * KAYBETME SESİ - Mario'nun ölüm ezgisi gibi:
+   * üç kısa inen nota, ardından aşağı doğru kayan uzun bir "waaah".
+   */
+  function kaybetSes() {
+    tonCal("square",   392, 392, 0.15, 0.16, 0.00);   // sol
+    tonCal("square",   370, 370, 0.15, 0.16, 0.17);   // fa diyez
+    tonCal("square",   349, 349, 0.15, 0.16, 0.34);   // fa
+    tonCal("triangle", 330, 150, 0.95, 0.22, 0.53);   // mi -> aşağı kayan uzun ton
+    tonCal("sine",     165,  80, 0.95, 0.14, 0.53);   // bir oktav alttan kalın destek
+  }
+
+  /**
+   * KAZANMA SESİ - alkış + neşeli arpej.
+   * Alkış, rastgele "el çırpma" tepeleri içeren beyaz gürültüden üretilir.
+   */
+  function alkisCal() {
+    if (!sesCtx || !anaKazanc) return;
+    var t0   = sesCtx.currentTime;
+    var sure = 2.8;
+    var oran = sesCtx.sampleRate;
+
+    // 1) Alkış: gürültü tamponu.
+    //    Cızırtıyı önlemek için üç önlem:
+    //    a) zarf birden 1'e sıçramaz, ~2 ms'de yükselir (örnek sıçraması yok)
+    //    b) beyaz gürültü basit bir alçak geçiren süzgeçten geçirilir
+    //    c) vuruşlar seyrek ve uzun sönümlü, böylece tek tek el sesi duyulur
+    var tampon = sesCtx.createBuffer(1, Math.floor(oran * sure), oran);
+    var veri   = tampon.getChannelData(0);
+    var hedef  = 0;        // zarfın gitmek istediği değer
+    var zarf   = 0;        // yumuşatılmış zarf
+    var yumusakGurultu = 0;
+    var atak = 1 / Math.max(1, Math.round(oran * 0.002));   // ~2 ms'lik yükselme
+
+    for (var i = 0; i < veri.length; i++) {
+      // Yeni bir el çırpma (her biri farklı yükseklikte)
+      if (Math.random() < 0.0004) hedef = 0.5 + Math.random() * 0.5;
+      hedef *= 0.99955;                       // ~50 ms sönüm
+      zarf  += (hedef - zarf) * atak;         // sıçramasız geçiş
+
+      yumusakGurultu = yumusakGurultu * 0.55 + (Math.random() * 2 - 1) * 0.45;
+      veri[i] = yumusakGurultu * zarf * 0.5;
+    }
+
+    // Sondaki 30 ms'i kısarak tamponun ani kesilmesini engelle
+    var sonKisim = Math.floor(oran * 0.03);
+    for (var j = 0; j < sonKisim; j++) {
+      veri[veri.length - 1 - j] *= j / sonKisim;
+    }
+
+    var kaynak = sesCtx.createBufferSource();
+    kaynak.buffer = tampon;
+
+    // Bant geçiren filtre gürültüyü "el sesi" tınısına yaklaştırır,
+    // alçak geçiren filtre de tiz cızırtıyı alır.
+    var bant = sesCtx.createBiquadFilter();
+    bant.type = "bandpass";
+    bant.frequency.value = 1200;
+    bant.Q.value = 0.9;
+
+    var tiziKes = sesCtx.createBiquadFilter();
+    tiziKes.type = "lowpass";
+    tiziKes.frequency.value = 3200;
+
+    var gain = sesCtx.createGain();
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.exponentialRampToValueAtTime(0.55, t0 + 0.2);    // alkış yükselir
+    gain.gain.setValueAtTime(0.55, t0 + sure - 1.0);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + sure); // yavaşça diner
+
+    // Küçük bir salon yankısı: sesi yumuşatır, "kuru cızırtı" hissini alır
+    var gecikme = sesCtx.createDelay(0.3);
+    gecikme.delayTime.value = 0.07;
+    var geriBesleme = sesCtx.createGain();
+    geriBesleme.gain.value = 0.25;
+    var yankiSes = sesCtx.createGain();
+    yankiSes.gain.value = 0.5;
+
+    gecikme.connect(geriBesleme).connect(gecikme);   // yankı döngüsü
+    gecikme.connect(yankiSes).connect(gain);
+
+    kaynak.connect(bant).connect(tiziKes);
+    tiziKes.connect(gecikme);        // yankıya giden kol
+    tiziKes.connect(gain);           // doğrudan giden kol
+    gain.connect(anaKazanc);
+    kaynak.start(t0);
+    kaynak.stop(t0 + sure);
+
+    // Yankı döngüsü kendi kendine sönse de düğümleri sonra serbest bırak
+    setTimeout(function () {
+      try {
+        gain.disconnect();
+        gecikme.disconnect();
+        geriBesleme.disconnect();
+        yankiSes.disconnect();
+      } catch (e) { /* önemli değil */ }
+    }, (sure + 1) * 1000);
+
+    // 2) Zafer arpeji: do - mi - sol - do (bir üst oktav).
+    //    Alkışın üstünde duyulsun diye notalar aralıklı ve kısık.
+    tonCal("sine", 523,  523,  0.18, 0.18, 0.05);
+    tonCal("sine", 659,  659,  0.18, 0.18, 0.20);
+    tonCal("sine", 784,  784,  0.18, 0.18, 0.35);
+    tonCal("sine", 1046, 1046, 0.60, 0.20, 0.50);
+  }
+
+  /* ============================================================
+     KONFETİ
+     ============================================================ */
+
+  /** Ekrandaki konfeti parçalarını siler. */
+  function konfetiTemizle() {
+    konfetiKatmani.textContent = "";
+  }
+
+  /** Üç noktadan dışa doğru konfeti patlatır, parçalar sonra yere düşer. */
+  function konfetiPatlat() {
+    // Web Animations API yoksa (çok eski tarayıcı) sessizce geç
+    if (!konfetiKatmani || typeof konfetiKatmani.animate !== "function") return;
+
+    konfetiTemizle();
+
+    var renkler = ["#FFD93D", "#FF6B6B", "#37CB6B", "#4D9DE0",
+                   "#FF8C42", "#B388FF", "#FFFFFF"];
+    var g = window.innerWidth;
+    var y = window.innerHeight;
+    var merkezler = [[g * 0.5, y * 0.42], [g * 0.25, y * 0.5], [g * 0.75, y * 0.5]];
+
+    for (var i = 0; i < 96; i++) {
+      var m = merkezler[i % merkezler.length];
+
+      var parca = document.createElement("div");
+      parca.className = "konfeti-parca";
+      parca.style.background = renkler[i % renkler.length];
+      parca.style.left = m[0] + "px";
+      parca.style.top  = m[1] + "px";
+      if (i % 3 === 0) parca.style.borderRadius = "50%";   // bir kısmı yuvarlak
+      konfetiKatmani.appendChild(parca);
+
+      // Rastgele yön ve güçle dışa fırla, sonra yerçekimiyle aşağı in
+      var aci   = Math.random() * Math.PI * 2;
+      var guc   = 130 + Math.random() * 280;
+      var dx    = Math.cos(aci) * guc;
+      var dy    = Math.sin(aci) * guc * 0.75;
+      var donme = Math.random() * 900 - 450;
+
+      parca.animate([
+        { transform: "translate(0px, 0px) rotate(0deg)", opacity: 1 },
+        { transform: "translate(" + dx + "px, " + dy + "px) rotate(" +
+                     donme + "deg)", opacity: 1, offset: 0.3 },
+        { transform: "translate(" + (dx * 1.3) + "px, " +
+                     (y - m[1] + 80) + "px) rotate(" + (donme * 2) + "deg)",
+          opacity: 0 }
+      ], {
+        duration: 2400 + Math.random() * 1800,
+        easing: "cubic-bezier(.15,.6,.4,1)",
+        fill: "forwards"
+      });
+    }
+
+    // Animasyon bitince katmanı boşalt
+    setTimeout(konfetiTemizle, 4600);
+  }
+
+  /** Duraklatma: iki notalı, aşağı inen kısa "bip-bop" */
+  function duraklatSes() {
+    tonCal("sine", 700, 620, 0.12, 0.18, 0);
+    tonCal("sine", 480, 400, 0.18, 0.16, 0.12);
+  }
+
+  /**
+   * Geri sayım sesi.
+   * @param {boolean} sonMu true ise "başla!" tonu (daha tiz ve uzun)
+   */
+  function sayimSes(sonMu) {
+    if (sonMu) {
+      tonCal("sine", 990, 1050, 0.30, 0.22, 0);
+    } else {
+      tonCal("sine", 660, 660, 0.12, 0.18, 0);
+    }
+  }
+
+  /** Rekor kırılınca: oyun sonu ezgisinden sonra yükselen küçük fanfar */
+  function rekorSes() {
+    tonCal("sine", 660,  700,  0.15, 0.20, 0.90);
+    tonCal("sine", 880,  900,  0.15, 0.20, 1.05);
+    tonCal("sine", 1180, 1320, 0.35, 0.22, 1.20);
+  }
+
+  /* ============================================================
+     SKOR TABLOSU (tarayıcının hafızasında saklanır)
+     ------------------------------------------------------------
+     Kayıtlar localStorage'da tutulur, böylece oyun kapatılıp
+     tekrar açıldığında liste kaybolmaz. Tarayıcı depolamaya izin
+     vermezse liste yalnızca o oturum boyunca hafızada tutulur.
+     ============================================================ */
+  var SKOR_ANAHTAR = "harfYakalamaEnIyi5";
+  var MAKS_KAYIT   = 5;
+  var yedekListe   = [];   // localStorage çalışmazsa kullanılacak liste
+
+  /** Kayıtlı skorları okur: [{isim, puan, tarih}, ...] */
+  function skorlariOku() {
+    try {
+      var ham = localStorage.getItem(SKOR_ANAHTAR);
+      if (!ham) return yedekListe.slice();
+      var liste = JSON.parse(ham);
+      if (!Array.isArray(liste)) return [];
+      return liste
+        .filter(function (k) { return k && typeof k.puan === "number"; })
+        .sort(function (a, b) { return b.puan - a.puan; })   // büyükten küçüğe
+        .slice(0, MAKS_KAYIT);
+    } catch (e) {
+      return yedekListe.slice();     // bozuk kayıt veya depolama kapalı
+    }
+  }
+
+  /** Listeyi kaydeder. */
+  function skorlariYaz(liste) {
+    yedekListe = liste.slice();
+    try {
+      localStorage.setItem(SKOR_ANAHTAR, JSON.stringify(liste));
+    } catch (e) { /* depolama kapalıysa sessizce geç */ }
+  }
+
+  /** Bu puan en iyi 5'e girer mi? (0 puanla listeye girilmez) */
+  function rekorMu(puan) {
+    if (puan <= 0) return false;
+    var liste = skorlariOku();
+    if (liste.length < MAKS_KAYIT) return true;      // liste dolmamışsa girer
+    return puan > liste[liste.length - 1].puan;      // 5.'den büyük olmalı
+  }
+
+  /** Yeni skoru ekler, büyükten küçüğe sıralar, ilk 5'i saklar. */
+  function skorEkle(isim, puan) {
+    var liste = skorlariOku();
+    var kayit = { isim: isim, puan: puan, tarih: new Date().toISOString() };
+    liste.push(kayit);
+    liste.sort(function (a, b) { return b.puan - a.puan; });
+    skorlariYaz(liste.slice(0, MAKS_KAYIT));
+    return kayit;
+  }
+
+  /** Girilen ismi temizler: en fazla 5 karakter, büyük harf. */
+  function isimTemizle(ham) {
+    var ad = (ham || "").trim().toLocaleUpperCase("tr-TR").slice(0, 5);
+    return ad || "SEN";     // boş bırakılırsa varsayılan isim
+  }
+
+  /** ISO tarihi "10.08.2026" biçiminde yazar. */
+  function tarihYaz(iso) {
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return "";
+    var gg = ("0" + d.getDate()).slice(-2);
+    var aa = ("0" + (d.getMonth() + 1)).slice(-2);
+    return gg + "." + aa + "." + d.getFullYear();
+  }
+
+  var MADALYA = ["🥇", "🥈", "🥉", "4.", "5."];
+
+  /**
+   * Tabloyu ekrana çizer.
+   * @param {object|null} vurgula yeni eklenen kayıt (yeşil gösterilir)
+   */
+  function tabloyuCiz(vurgula) {
+    var liste = skorlariOku();
+    tabloListe.textContent = "";       // önce temizle
+
+    if (liste.length === 0) {
+      var bos = document.createElement("li");
+      bos.className = "tablo-bos";
+      bos.textContent = "Henüz kayıt yok. İlk rekoru sen kır!";
+      tabloListe.appendChild(bos);
+      return;
+    }
+
+    liste.forEach(function (kayit, i) {
+      var li = document.createElement("li");
+      li.className = "skor-satir";
+      if (vurgula && kayit.tarih === vurgula.tarih &&
+          kayit.puan === vurgula.puan && kayit.isim === vurgula.isim) {
+        li.classList.add("yeni");
+      }
+
+      // textContent kullanıyoruz: isimdeki özel karakterler zararsız kalır
+      var alanlar = [
+        ["skor-madalya", MADALYA[i]],
+        ["skor-isim",    kayit.isim],
+        ["skor-puan",    String(kayit.puan)],
+        ["skor-tarih",   tarihYaz(kayit.tarih)]
+      ];
+      alanlar.forEach(function (a) {
+        var s = document.createElement("span");
+        s.className = a[0];
+        s.textContent = a[1];
+        li.appendChild(s);
+      });
+
+      tabloListe.appendChild(li);
+    });
+  }
+
+  /**
+   * Tabloyu açar. Oyun sürüyorsa normal duraklatma kurallarıyla duraklatır
+   * (harfler gizlenir); böylece tabloyu açıp harfleri inceleme açığı olmaz.
+   */
+  function tabloyuAc(vurgula) {
+    if (oynaniyor) duraklat();
+    tabloyuCiz(vurgula);
+    tabloKatmani.classList.remove("gizli");
+  }
+
+  /** Tabloyu kapatır. Oyun duraklatıldıysa "▶ Devam Et" ile sürdürülür. */
+  function tabloyuKapat() {
+    tabloKatmani.classList.add("gizli");
+  }
+
+  /** Yardım penceresini açar; oyun sürüyorsa duraklatır. */
+  function yardimAc() {
+    if (oynaniyor) duraklat();
+    yardimKatmani.classList.remove("gizli");
+  }
+
+  /** Yardım penceresini kapatır. */
+  function yardimKapat() {
+    yardimKatmani.classList.add("gizli");
+  }
+
+  /* ============================================================
+     YARDIMCI FONKSİYONLAR
+     ============================================================ */
+
+  /** Oyun alanının o anki ölçüleri. */
+  function alanOlcusu() {
+    return { g: oyunAlani.clientWidth, y: oyunAlani.clientHeight };
+  }
+
+  /** Skoru ekrana yazar ve küçük bir zıplama animasyonu oynatır. */
+  function skorGuncelle() {
+    skorEl.textContent = skor;
+    skorEl.classList.remove("zipla");
+    void skorEl.offsetWidth;      // animasyonu yeniden tetiklemek için
+    skorEl.classList.add("zipla");
+  }
+
+  /** Harfin bulunduğu yerde "+50" / "-50" baloncuğu gösterir. */
+  function puanBalonu(item, puan) {
+    var balon = document.createElement("div");
+    balon.className = "puan-balonu " + (puan > 0 ? "arti" : "eksi");
+    balon.textContent = (puan > 0 ? "+" : "") + puan;
+    balon.style.left = item.x + "%";
+    balon.style.top  = item.y + "px";
+    oyunAlani.appendChild(balon);
+    setTimeout(function () { balon.remove(); }, 800);
+  }
+
+  /** Kuyruğun başındaki harfi "hedef" olarak işaretler. */
+  function hedefiGuncelle() {
+    for (var i = 0; i < kuyruk.length; i++) {
+      kuyruk[i].el.classList.toggle("hedef", i === 0);
+    }
+  }
+
+  /* ============================================================
+     ADAM ASMACA
+     ============================================================ */
+
+  /** Hata sayısına göre asmaca parçalarını gösterir/gizler. */
+  function asmacaGuncelle() {
+    for (var i = 0; i < asmacaParcalari.length; i++) {
+      asmacaParcalari[i].classList.toggle("gorunur", i < hata);
+    }
+    hataSayisiEl.textContent = hata;
+    // Asmaca tamamlandıysa çizim kırmızıya döner
+    asmacaCizim.classList.toggle("bitti", hata >= AYAR.MAKS_HATA);
+  }
+
+  /**
+   * Bir hata işler: puan düşer, asmacaya bir parça eklenir,
+   * 8. hatada oyun biter.
+   * @param {object} item hatanın yaşandığı harf (baloncuk konumu için)
+   */
+  function hataYap(item) {
+    // Oyun bittikten sonra (örn. aynı karede iki harf birden düşerse)
+    // fazladan hata sayılmasın
+    if (!oynaniyor) return;
+
+    // Puan 0'ın altına inmesin: kalan puandan fazlası düşülmez
+    var dusus = Math.min(AYAR.HATA_PUAN, skor);
+    skor -= dusus;
+    if (dusus > 0) puanBalonu(item, -dusus);   // puan 0 ise baloncuk gösterme
+    skorGuncelle();
+
+    hata++;
+    asmacaGuncelle();
+    buzzCal();
+
+    if (hata >= AYAR.MAKS_HATA) oyunuBitir(false);
+  }
+
+  /* ============================================================
+     HARF ÜRETME VE HAREKET
+     ============================================================ */
+
+  /** Yeni bir harf oluşturup kuyruğun sonuna ekler. */
+  function harfUret() {
+    // Şu an kullanımda olan şeritleri atla ki harfler üst üste binmesin
+    var dolu = kuyruk.map(function (k) { return k.x; });
+    var bos  = AYAR.SERITLER.filter(function (s) { return dolu.indexOf(s) === -1; });
+    var secenekler = bos.length ? bos : AYAR.SERITLER;
+
+    var x    = secenekler[Math.floor(Math.random() * secenekler.length)];
+    var harf = ALFABE[Math.floor(Math.random() * ALFABE.length)];
+
+    var el = document.createElement("div");
+    el.className = "harf";
+    el.textContent = harf;
+    el.style.left = x + "%";
+    el.style.top  = AYAR.BULUT_ALTI + "px";
+    oyunAlani.appendChild(el);
+
+    kuyruk.push({ harf: harf, x: x, y: AYAR.BULUT_ALTI, el: el });
+    hedefiGuncelle();
+  }
+
+  /**
+   * Bir harfi kuyruktan çıkarır ve ekrandan siler.
+   * @param {object} item   kuyruk elemanı
+   * @param {string} durum  "dogru" | "yanlis"
+   */
+  function harfiCikar(item, durum) {
+    var sira = kuyruk.indexOf(item);
+    if (sira !== -1) kuyruk.splice(sira, 1);
+
+    item.el.classList.remove("hedef");
+    item.el.classList.add(durum);              // yeşil / kırmızı animasyon
+    setTimeout(function () { item.el.remove(); }, 350);
+
+    hedefiGuncelle();
+  }
+
+  /** O anki düşme hızı (piksel/saniye). Zamanla kademeli artar. */
+  function guncelHiz() {
+    var carpan = Math.min(
+      AYAR.MAKS_HIZ,
+      AYAR.BASLANGIC_HIZ + gecenSure * AYAR.HIZ_ARTISI
+    );
+    return alanOlcusu().y * carpan;
+  }
+
+  /** O anki harf çıkma aralığı (saniye). Zamanla kısalır. */
+  function guncelAralik() {
+    return Math.max(
+      AYAR.MIN_ARALIK,
+      AYAR.BASLANGIC_ARALIK - gecenSure * AYAR.ARALIK_AZALMASI
+    );
+  }
+
+  /* ============================================================
+     ANA OYUN DÖNGÜSÜ
+     ============================================================ */
+  function dongu(zaman) {
+    if (!oynaniyor) return;
+
+    // dt: iki kare arasındaki süre (saniye). Sekme arka plana alınırsa
+    // çok büyük bir değer gelmesin diye üst sınır koyuyoruz.
+    var dt = Math.min((zaman - sonKare) / 1000, 0.05);
+    sonKare = zaman;
+    gecenSure += dt;
+
+    // 1) Zamanı gelmişse ve yer varsa yeni harf çıkar
+    dogumSayaci -= dt;
+    if (dogumSayaci <= 0 && kuyruk.length < AYAR.MAKS_HARF) {
+      harfUret();
+      dogumSayaci = guncelAralik();
+    }
+
+    // 2) Harfleri aşağı taşı, zemine değenleri hata olarak işle
+    var hiz   = guncelHiz();
+    var zemin = alanOlcusu().y - AYAR.CIMEN_YUKSEKLIGI - 60;
+
+    // Sondan başa geziyoruz: eleman silinse bile sıra bozulmaz
+    for (var i = kuyruk.length - 1; i >= 0; i--) {
+      var item = kuyruk[i];
+      item.y += hiz * dt;
+      item.el.style.top = item.y + "px";
+
+      if (item.y >= zemin) {
+        harfiCikar(item, "yanlis");   // yakalanamadı
+        hataYap(item);                // -50 puan + asmacaya bir parça
+      }
+    }
+
+    if (oynaniyor) animId = requestAnimationFrame(dongu);
+  }
+
+  /* ============================================================
+     KLAVYE
+     ============================================================ */
+  document.addEventListener("keydown", function (e) {
+    // İsim kutusuna yazarken tuşlar oyuna gitmesin
+    if (e.target && e.target.tagName === "INPUT") return;
+
+    // Esc: açık pencereyi kapatır
+    if (e.key === "Escape") {
+      if (!tabloKatmani.classList.contains("gizli"))  { tabloyuKapat(); return; }
+      if (!yardimKatmani.classList.contains("gizli")) { yardimKapat();  return; }
+    }
+
+    // Boşluk tuşu sayfayı kaydırmasın / butona basmasın
+    if (e.key === " ") e.preventDefault();
+
+    if (!oynaniyor || kuyruk.length === 0) return;
+
+    // Sadece tek karakterli A-Z tuşlarını değerlendir
+    // (rakamlar, ok tuşları, Shift vb. yok sayılır)
+    if (e.key.length !== 1) return;
+    var basilan = e.key.toUpperCase();
+    if (basilan < "A" || basilan > "Z") return;
+
+    var hedef = kuyruk[0];             // kuyruktaki en eski harf
+
+    if (basilan === hedef.harf) {
+      // ---- DOĞRU ----
+      skor += AYAR.DOGRU_PUAN;
+      puanBalonu(hedef, AYAR.DOGRU_PUAN);
+      harfiCikar(hedef, "dogru");
+      skorGuncelle();
+      dingCal();
+      // Hedef puana ulaşıldıysa oyun kazanıldı
+      if (skor >= AYAR.MAKS_PUAN) oyunuBitir(true);
+    } else {
+      // ---- YANLIŞ ----
+      harfiCikar(hedef, "yanlis");
+      hataYap(hedef);                  // -50 puan + asmacaya bir parça
+    }
+  });
+
+  /* ============================================================
+     BAŞLAT / BİTİR / YENİDEN BAŞLAT
+     ============================================================ */
+
+  /** Ekrandaki tüm harfleri ve baloncukları temizler. */
+  function alaniTemizle() {
+    kuyruk.forEach(function (item) { item.el.remove(); });
+    kuyruk = [];
+    var kalanlar = oyunAlani.querySelectorAll(".harf, .puan-balonu");
+    for (var i = 0; i < kalanlar.length; i++) kalanlar[i].remove();
+  }
+
+  function oyunuBaslat() {
+    sesHazirla();          // tarayıcı sesi ancak kullanıcı tıklayınca açar
+    alaniTemizle();
+
+    skor        = 0;
+    hata        = 0;
+    gecenSure   = 0;
+    dogumSayaci = 0.4;     // ilk harf kısa bir gecikmeyle gelsin
+    oynaniyor   = true;
+
+    isimBekleniyor = false;          // varsa yarım kalan isim girişini kapat
+    isimForm.classList.add("gizli");
+    konfetiTemizle();                // önceki turdan kalan konfeti kalmasın
+
+    skorGuncelle();
+    asmacaGuncelle();      // asmacayı sıfırla
+    duraklatmaSifirla();
+    mesajKatman.classList.add("gizli");
+    baslaBtn.disabled = true;
+    duraklatBtn.disabled = false;   // oyun sürerken duraklatılabilir
+
+    sonKare = performance.now();
+    cancelAnimationFrame(animId);
+    animId = requestAnimationFrame(dongu);
+  }
+
+  function oyunuDurdur() {
+    oynaniyor = false;
+    cancelAnimationFrame(animId);
+  }
+
+  /* ---------- Duraklat / Devam et ---------- */
+
+  /** Oyunu dondurur: harfler durur, süre ve puan olduğu gibi kalır. */
+  function duraklat() {
+    if (!oynaniyor || duraklatildi) return;
+    oyunuDurdur();
+    duraklatildi = true;
+    duraklatSes();
+
+    duraklatBtn.textContent = "▶ Devam Et";
+    duraklatKatmani.classList.remove("gizli");
+    oyunAlani.classList.add("durdu");     // CSS animasyonları da dursun
+  }
+
+  /**
+   * Ekrandaki harflerin hepsine yeni birer harf verir.
+   * Duraklatma sırasında ezberlenen harf işe yaramasın diye:
+   * duraklatıp tuşu rahatça aramanın hiçbir faydası kalmaz.
+   */
+  function harfleriKaristir() {
+    kuyruk.forEach(function (item) {
+      var yeni;
+      do {
+        yeni = ALFABE[Math.floor(Math.random() * ALFABE.length)];
+      } while (yeni === item.harf);     // mutlaka farklı bir harf olsun
+      item.harf = yeni;
+      item.el.textContent = yeni;
+    });
+  }
+
+  /** 3-2-1 geri sayımı gösterir, bitince bitinceCagir() çağrılır. */
+  function geriSayimBasla(bitinceCagir) {
+    var kalan = AYAR.GERI_SAYIM;
+
+    function goster() {
+      geriSayimEl.textContent = kalan;
+      geriSayimEl.classList.remove("gizli", "tik");
+      void geriSayimEl.offsetWidth;     // animasyonu yeniden tetikle
+      geriSayimEl.classList.add("tik");
+      sayimSes(false);                  // her rakamda kısa bip
+    }
+    goster();
+
+    geriSayimSayaci = setInterval(function () {
+      kalan--;
+      if (kalan > 0) {
+        goster();
+      } else {
+        clearInterval(geriSayimSayaci);
+        geriSayimSayaci = null;
+        geriSayimEl.classList.add("gizli");
+        sayimSes(true);                 // "başla!" tonu
+        bitinceCagir();
+      }
+    }, 1000);
+  }
+
+  /** Devam ettikten sonra bir süre yeniden duraklatmayı kilitler. */
+  function beklemeBasla() {
+    var kalan = AYAR.DURAKLAT_BEKLEME;
+    duraklatBtn.disabled = true;
+    duraklatBtn.textContent = "⏸ " + kalan;
+
+    beklemeSayaci = setInterval(function () {
+      kalan--;
+      if (kalan > 0) {
+        duraklatBtn.textContent = "⏸ " + kalan;
+      } else {
+        clearInterval(beklemeSayaci);
+        beklemeSayaci = null;
+        duraklatBtn.textContent = "⏸ Duraklat";
+        if (oynaniyor) duraklatBtn.disabled = false;
+      }
+    }, 1000);
+  }
+
+  /** Duraklatılan oyunu geri sayımın ardından sürdürür. */
+  function devamEt() {
+    if (!duraklatildi) return;
+    duraklatildi = false;
+
+    duraklatKatmani.classList.add("gizli");
+    harfleriKaristir();                    // ezberlenen harf geçersiz olsun
+
+    duraklatBtn.textContent = "⏸ Duraklat";
+    duraklatBtn.disabled = true;           // geri sayım boyunca kapalı
+
+    // Harfler geri sayım boyunca da gizli kalır ("durdu" sınıfı duruyor):
+    // yoksa oyuncu 3 saniye boyunca yeni harfin tuşunu aramış olurdu.
+    geriSayimBasla(function () {
+      oyunAlani.classList.remove("durdu");  // harfler tam oyun başlarken görünür
+      oynaniyor = true;
+      // sonKare'i şimdiye çekiyoruz ki geçen bekleme süresi
+      // tek karede harfleri aşağı fırlatmasın
+      sonKare = performance.now();
+      animId = requestAnimationFrame(dongu);
+      beklemeBasla();                      // hemen tekrar duraklatılamasın
+    });
+  }
+
+  /** Duraklatma durumunu ve sayaçları sıfırlar (oyun başlarken/biterken). */
+  function duraklatmaSifirla() {
+    duraklatildi = false;
+
+    if (geriSayimSayaci) { clearInterval(geriSayimSayaci); geriSayimSayaci = null; }
+    if (beklemeSayaci)   { clearInterval(beklemeSayaci);   beklemeSayaci   = null; }
+
+    geriSayimEl.classList.add("gizli");
+    duraklatBtn.textContent = "⏸ Duraklat";
+    duraklatKatmani.classList.add("gizli");
+    oyunAlani.classList.remove("durdu");
+  }
+
+  /**
+   * Oyunu bitirir ve sonuç ekranını gösterir.
+   * @param {boolean} kazandi true: 10000 puana ulaşıldı, false: 8 hata doldu
+   */
+  function oyunuBitir(kazandi) {
+    oyunuDurdur();
+    duraklatmaSifirla();
+    duraklatBtn.disabled = true;   // oyun bitti, duraklatacak bir şey yok
+
+    // Havadaki harfler animasyonlarını bitirsin, sonra temizlensin
+    setTimeout(alaniTemizle, 400);
+
+    if (kazandi) {
+      alkisCal();
+      konfetiPatlat();
+      mesajBaslik.textContent = "🎉 Tebrikler! 🎉";
+      mesajMetin.innerHTML =
+        "<b>" + AYAR.MAKS_PUAN + "</b> puana ulaştın, oyunu kazandın!<br>" +
+        "Klavyeyi çok iyi öğrendin.";
+    } else {
+      kaybetSes();
+      mesajBaslik.textContent = "Oyun Bitti!";
+      mesajMetin.innerHTML =
+        AYAR.MAKS_HATA + " hata yaptın, adam asmaca tamamlandı.<br>" +
+        "Toplam puanın: <b>" + skor + "</b>";
+    }
+
+    if (rekorMu(skor)) {
+      // En iyi 5'e giriyor: isim istensin
+      isimBekleniyor = true;
+      isimGirdi.value = "";
+      isimForm.classList.remove("gizli");
+      mesajIpucu.textContent = "Adını yazıp Kaydet'e bas.";
+      if (!kazandi) rekorSes();   // kazanma sesiyle çakışmasın
+      setTimeout(function () { isimGirdi.focus(); }, 60);
+    } else {
+      isimBekleniyor = false;
+      isimForm.classList.add("gizli");
+      mesajIpucu.innerHTML = "Tekrar oynamak için <b>↻ Yeniden Başlat</b>";
+    }
+
+    mesajKatman.classList.remove("gizli");
+    baslaBtn.disabled = false;
+  }
+
+  /** İsim girişini kaydeder ve tabloyu yeni kayıt vurgulu açar. */
+  function rekoruKaydet() {
+    if (!isimBekleniyor) return;
+    var kayit = skorEkle(isimTemizle(isimGirdi.value), skor);
+
+    isimBekleniyor = false;
+    isimForm.classList.add("gizli");
+    mesajIpucu.innerHTML = "Tekrar oynamak için <b>↻ Yeniden Başlat</b>";
+    tabloyuAc(kayit);
+  }
+
+  baslaBtn.addEventListener("click", function () {
+    oyunuBaslat();
+    baslaBtn.blur();       // odak butonda kalmasın, tuşlar oyuna gitsin
+  });
+
+  yenidenBtn.addEventListener("click", function () {
+    oyunuDurdur();
+    oyunuBaslat();
+    yenidenBtn.blur();
+  });
+
+  // Başlangıç / oyun sonu ekranına tıklayınca da yeni oyun başlasın
+  // (isim girilirken tıklama oyunu başlatmasın)
+  mesajKatman.addEventListener("click", function () {
+    if (!oynaniyor && !isimBekleniyor) oyunuBaslat();
+  });
+
+  /* ---------- Duraklat / Devam et düğmesi ---------- */
+  duraklatBtn.addEventListener("click", function () {
+    if (duraklatildi) devamEt(); else duraklat();
+    duraklatBtn.blur();   // odak düğmede kalmasın, tuşlar oyuna gitsin
+  });
+
+  // Duraklatma ekranına tıklamak da oyunu sürdürür
+  duraklatKatmani.addEventListener("click", devamEt);
+
+  /* ---------- Skor tablosu düğmeleri ---------- */
+  tabloBtn.addEventListener("click", function () {
+    tabloyuAc(null);
+    tabloBtn.blur();
+  });
+
+  tabloKapatBtn.addEventListener("click", tabloyuKapat);
+
+  /* ---------- Yardım penceresi ---------- */
+  yardimBtn.addEventListener("click", function () {
+    yardimAc();
+    yardimBtn.blur();
+  });
+
+  yardimKapatBtn.addEventListener("click", yardimKapat);
+
+  // Kutunun dışına tıklayınca da kapansın
+  yardimKatmani.addEventListener("click", function (e) {
+    if (e.target === yardimKatmani) yardimKapat();
+  });
+
+  // Kutunun dışına (koyu alana) tıklayınca da kapansın
+  tabloKatmani.addEventListener("click", function (e) {
+    if (e.target === tabloKatmani) tabloyuKapat();
+  });
+
+  /* ---------- İsim kaydetme ---------- */
+  // stopPropagation: tıklama mesaj katmanına ulaşıp yeni oyun başlatmasın
+  kaydetBtn.addEventListener("click", function (e) {
+    e.stopPropagation();
+    rekoruKaydet();
+  });
+
+  isimGirdi.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      rekoruKaydet();
+    }
+  });
+
+  // Sekme arka plana alınırsa oyunu duraklat, geri gelince devam ettir
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden) {
+      cancelAnimationFrame(animId);
+    } else if (oynaniyor) {
+      sonKare = performance.now();
+      animId = requestAnimationFrame(dongu);
+    }
+  });
+
+  /**
+   * Oyun ilk kez açıldığında yardım penceresini kendiliğinden gösterir.
+   * Daha sonra sadece "i" düğmesiyle açılır.
+   */
+  function ilkAcilistaYardimGoster() {
+    var ANAHTAR = "harfYakalamaYardimGorundu";
+    var gorundu = false;
+    try {
+      gorundu = localStorage.getItem(ANAHTAR) === "1";
+      if (!gorundu) localStorage.setItem(ANAHTAR, "1");
+    } catch (e) {
+      gorundu = yardimGosterildi;   // depolama kapalıysa oturum içinde bir kez
+    }
+    if (!gorundu) {
+      yardimGosterildi = true;
+      yardimAc();
+    }
+  }
+
+  // Başlangıç görünümü
+  skorGuncelle();
+  asmacaGuncelle();
+  ilkAcilistaYardimGoster();
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,13 @@
+# İşletim sistemi dosyaları
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+desktop.ini
+.DS_Store
+
+# Düzenleyici klasörleri
+.vscode/
+.idea/
+
+# Geçici test dosyaları
+_test_*.html

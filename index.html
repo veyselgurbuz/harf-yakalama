@@ -1028,6 +1028,7 @@ body {
   var geriSayimSayaci  = null;  // devam ederkenki 3-2-1 sayacı
   var beklemeSayaci    = null;  // tekrar duraklatabilmek için bekleme sayacı
   var isimBekleniyor = false;   // oyun sonunda isim girişi açık mı?
+  var isimGirisEngellendi = false; // yasaklı kelime denemesinden sonra engellendi mi?
 
   /* ============================================================
      SES (Web Audio API - hiç ses dosyası gerekmez)
@@ -1354,6 +1355,47 @@ body {
     return ad || "SEN";     // boş bırakılırsa varsayılan isim
   }
 
+  /**
+   * İsmin yasaklı içerik barındırıp barındırmadığını kontrol eder.
+   * Boşluk ve özel karakterleri temizleyerek kontrol yapar.
+   * @returns {string} boş string ise temiz, aksi halde uyarı mesajı
+   */
+  function isimKontrolEt(ham) {
+    // Yasaklı kelimeler: Türkçe küfür, argo, cinsel içerik
+    var yasaklilar = [
+      // Cinsel içerik
+      "PORNO", "PORN", "SEX", "SEKS", "ORGY", "ORJİ", "ORJI",
+      "ANAL", "PENIS", "PUSSY", "DICK",
+      // Güçlü küfürler
+      "SIKIS", "SIKIN", "SIKME", "SIKI", "SIK", "SIKTI", "SIKTIR",
+      "BOK", "BOKU", "BOKUM", "BOKÇA", "BOK", "BOKLU",
+      "GOT", "GÖTÜ", "GÖTÜ", "GÖTME", "GÖTÜ", "GÖTLEM",
+      "SIÇ", "SIÇMA", "SIÇTI", "SIÇTIR", "SIÇAK", "SIÇTIM",
+      "KAHPE", "KAHPESI", "KAHPELIK",
+      "FAHISE", "FAHIŞE",
+      "OROSPU", "OROSPUYA", "OROSPULUK", "OROSPU",
+      // Argo/küçültücü
+      "PEZEVENK", "PIMP", "AĞLA", "AĞLAMAK", "AĞLAK",
+      "KOLAY", "TEMBEL", "SALAK", "APTAL", "SİVRİ", "ARIZALI"
+    ];
+
+    // Girişi temizle: tüm boşluk, tire, alt çizgi vb. kaldır
+    var temizlenmis = (ham || "")
+      .toLocaleUpperCase("tr-TR")
+      .replace(/[\s\-_\.\/\\!@#$%^&*()+=\[\]{};:'"<>,.?\/]/g, "");
+
+    if (!temizlenmis) return "";  // boşsa tamam
+
+    // Her yasaklı kelime için kontrol et
+    for (var i = 0; i < yasaklilar.length; i++) {
+      if (temizlenmis.indexOf(yasaklilar[i]) !== -1) {
+        return "Uygun olmayan içerik algılandı. Lütfen farklı bir isim gir.";
+      }
+    }
+
+    return "";  // temiz
+  }
+
   /** ISO tarihi "10.08.2026" biçiminde yazar. */
   function tarihYaz(iso) {
     var d = new Date(iso);
@@ -1666,7 +1708,9 @@ body {
     oynaniyor   = true;
 
     isimBekleniyor = false;          // varsa yarım kalan isim girişini kapat
+    isimGirisEngellendi = false;     // engellemeyi kaldır, yeni oyunda tekrar dene
     isimForm.classList.add("gizli");
+    isimGirdi.value = "";            // input'u temizle
     konfetiTemizle();                // önceki turdan kalan konfeti kalmasın
 
     skorGuncelle();
@@ -1846,7 +1890,23 @@ body {
 
   /** İsim girişini kaydeder ve tabloyu yeni kayıt vurgulu açar. */
   function rekoruKaydet() {
-    if (!isimBekleniyor) return;
+    if (!isimBekleniyor || isimGirisEngellendi) return;
+
+    // Girişi kontrol et
+    var uyarı = isimKontrolEt(isimGirdi.value);
+    if (uyarı) {
+      // Uyarı göster
+      alert(uyarı);
+      // Girişi engelle
+      isimGirisEngellendi = true;
+      // Formu kapat
+      isimBekleniyor = false;
+      isimForm.classList.add("gizli");
+      isimGirdi.value = "";
+      mesajIpucu.innerHTML = "Tekrar oynamak için <b>↻ Yeniden Başlat</b>";
+      return;
+    }
+
     var kayit = skorEkle(isimTemizle(isimGirdi.value), skor);
 
     isimBekleniyor = false;

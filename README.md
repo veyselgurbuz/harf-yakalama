@@ -22,7 +22,7 @@ Puan hiçbir zaman 0'ın altına inmez. Harfler zamanla kademeli olarak hızlan�
 
 **Oyun iki şekilde biter:**
 
-- 🎉 **10000 puan** → oyunu kazanırsın: ekranda konfeti patlar, alkış sesi çalar.
+- 🎉 **15000 puan** → oyunu kazanırsın: ekranda konfeti patlar, alkış sesi çalar.
 - 💀 **8 hata** → sağdaki adam asmaca tamamlanır ve oyun biter.
 
 ---
@@ -76,7 +76,7 @@ var AYAR = {
   DOGRU_PUAN: 50,          // doğru tuş puanı
   HATA_PUAN: 50,           // hata başına düşen puan
   MAKS_HATA: 8,            // kaç hatada oyun biter
-  MAKS_PUAN: 10000,        // kazanmak için gereken puan
+  MAKS_PUAN: 15000,        // kazanmak için gereken puan
   GERI_SAYIM: 3,           // devam ederken geri sayım
   DURAKLAT_BEKLEME: 10,    // tekrar duraklatma bekleme süresi (sn)
   BASLANGIC_HIZ: 0.10,     // düşme hızı (alan yüksekliğinin oranı/sn)

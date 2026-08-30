@@ -81,9 +81,9 @@ body {
   font-size: clamp(1.6rem, 3.5vw, 2.4rem);
   font-weight: bold;
   color: #2D3E50;
-  /* 5 hane (10000) için sabit yer: puan büyüdükçe kutu genişleyip
+  /* 6 hane (15000) için sabit yer: puan büyüdükçe kutu genişleyip
      üst paneli oynatmasın */
-  min-width: 5ch;
+  min-width: 6ch;
   text-align: right;
 }
 
@@ -760,7 +760,7 @@ body {
             Bulutlardan harfler düşecek.<br>
             <b>Mavi çerçeveli</b> harfe bak ve o tuşa bas!<br>
             Kaçırırsan ya da yanlış basarsan adam asmaca büyür.<br>
-            <b>10000 puana</b> ulaşırsan oyunu kazanırsın!
+            <b>15000 puana</b> ulaşırsan oyunu kazanırsın!
           </p>
           <p id="mesajIpucu" class="mesaj-ipucu">
             Başlamak için <b>▶ Başla</b> düğmesine tıkla
@@ -875,8 +875,8 @@ body {
       <div class="yardim-bolum">
         <h3>🏁 Oyun ne zaman biter?</h3>
         <ul>
-          <li>🎉 <b>10000 puana</b> ulaşırsan kazanırsın: konfeti ve alkış!
-              (200 doğru harf demek)</li>
+          <li>🎉 <b>15000 puana</b> ulaşırsan kazanırsın: konfeti ve alkış!
+              (300 doğru harf demek)</li>
           <li>💀 <b>8 hata</b> yaparsan adam asmaca tamamlanır ve oyun biter.</li>
         </ul>
         <p>Harfler zamanla hızlanır: başta yavaş düşerler, oyun ilerledikçe
@@ -952,7 +952,7 @@ body {
     DOGRU_PUAN: 50,          // doğru tuş puanı
     HATA_PUAN: 50,           // her hatada düşülecek puan
     MAKS_HATA: 8,            // bu kadar hatada oyun biter (asmaca tamamlanır)
-    MAKS_PUAN: 10000,        // bu puana ulaşınca oyun kazanılır
+    MAKS_PUAN: 15000,        // bu puana ulaşınca oyun kazanılır
 
     // Duraklatmanın kötüye kullanılmasını engelleyen ayarlar
     GERI_SAYIM: 3,           // devam ederken kaçtan geri sayılsın
@@ -1845,7 +1845,7 @@ body {
 
   /**
    * Oyunu bitirir ve sonuç ekranını gösterir.
-   * @param {boolean} kazandi true: 10000 puana ulaşıldı, false: 8 hata doldu
+   * @param {boolean} kazandi true: 15000 puana ulaşıldı, false: 8 hata doldu
    */
   function oyunuBitir(kazandi) {
     oyunuDurdur();
